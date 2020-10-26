@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.table.*;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -36,8 +37,8 @@ import static java.util.Map.Entry.comparingByValue;
 @SuppressWarnings("Duplicates")
 public class Client {
 
-    private static NumberFormat twoDecimalFormatter = new DecimalFormat("#0.00");
-    private static SimpleDateFormat ddMMyyyy = new SimpleDateFormat("dd.MM.yyyy");
+    private static final NumberFormat twoDecimalFormatter = new DecimalFormat("#0.00");
+    private static final SimpleDateFormat ddMMyyyy = new SimpleDateFormat("dd.MM.yyyy");
     private static long lastRequest = 0;
     private static int failures = 0;
 
@@ -229,9 +230,9 @@ public class Client {
         saveFile(jsonArray.toString(4), "events.json");
     }
 
-    private static JsonNode downloadData() throws UnirestException, IOException {
+    private static JsonNode downloadData() throws UnirestException {
         HttpResponse<JsonNode> response = Unirest.post(Reference.SERVER)
-                .queryString("token", Reference.TOKEN)
+                .field("token", Reference.TOKEN)
                 .asJson();
         return response.getBody();
     }
@@ -239,7 +240,7 @@ public class Client {
     @SuppressWarnings("unused")
     private static JsonNode downloadEvents() throws UnirestException {
         HttpResponse<JsonNode> response = Unirest.post(Reference.SERVER + "/events")
-                .queryString("token", Reference.TOKEN)
+                .field("token", Reference.TOKEN)
                 .asJson();
         return response.getBody();
     }
@@ -286,10 +287,10 @@ public class Client {
         Client.comrades = comrades;
     }
 
-    private static Date getBirthDistance(String birthday, int yearsToAdd) throws ParseException {
+    private static Date getBirthDistance(String birthday, int yearsToAdd, Comrade comrade) throws ParseException {
         Date birth = ddMMyyyy.parse(birthday.substring(0, birthday.lastIndexOf(".") + 1) + (Calendar.getInstance().get(Calendar.YEAR) + yearsToAdd));
         long differenceMilliseconds = birth.getTime() - new Date().getTime();
-        if (differenceMilliseconds < 0) return getBirthDistance(birthday, 1);
+        if (differenceMilliseconds < -1000 * 60 * 60 * 24) return getBirthDistance(birthday, 1, comrade);
         return birth;
     }
 
@@ -301,10 +302,12 @@ public class Client {
             Date startDate = new Date();
 
             try {
-                startDate = getBirthDistance(birthday, 0);
+                startDate = getBirthDistance(birthday, 0, comrade);
             } catch (ParseException e) {
                 e.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Impossible Error occured:\nCaught ParseException while trying to parse:\n" + birthday, "Error", JOptionPane.ERROR_MESSAGE);
+                String message = "Impossible Error occured:\nCaught ParseException while trying to parse:\n" + birthday;
+                print(message);
+                JOptionPane.showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
                 Runtime.getRuntime().exit(1);
             }
 
@@ -370,7 +373,7 @@ public class Client {
 
             if ((eventUpdateType != EventType.ALL && eventUpdateType != event.getType()) || !event.isActive()) continue;
 
-            eventDistances.put(event, Math.floorDiv(event.getStartTimestamp() - now, 1000 * 60 * 60 * 24) + 1); // TODO this in new update method
+            eventDistances.put(event, Math.floorDiv(event.getStartTimestamp() - now, 1000 * 60 * 60 * 24) + 1);
         }
 
         eventDistances = eventDistances // Sort by ascending order
@@ -378,26 +381,6 @@ public class Client {
                 .stream()
                 .sorted(comparingByValue())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e2, LinkedHashMap::new));
-
-
-        /*
-
-        long lastEvent = 0;
-
-        print("");
-        print("");
-        print("");
-
-        for (Event event : eventDistances.keySet()) {
-            print("Event: " + event.getText() + " before previous: " + (lastEvent <= event.getStartTimestamp()));
-            lastEvent = event.getStartTimestamp();
-        }
-
-        print("");
-        print("");
-        print("");
-
-        */
 
         blackboardEventDistances = blackboardEventDistances
                 .entrySet()
@@ -416,11 +399,8 @@ public class Client {
 
         int eventsCounter = 0;
 
-        print("Size: " + eventDistances.size());
-
         for (Event event : eventDistances.keySet()) {
             eventsCounter++;
-            //print(event.getText() + ": " + event.getStartTimestamp());
 
             if (currentEvents.size() == 7) {
                 eventIndex.put(eventIndex.size() + 1, currentEvents);
@@ -437,10 +417,10 @@ public class Client {
 
         maxPage = eventIndex.size();
 
-        frame.getNextButton().setEnabled(maxPage != 1);
-
-        if (maxPage == page) {
+        if (maxPage == page && frame.getNextButton().isEnabled()) {
             frame.getNextButton().setEnabled(false);
+        } else if (!frame.getNextButton().isEnabled() && maxPage != page) {
+            frame.getNextButton().setEnabled(true);
         }
 
         String title;
@@ -530,156 +510,13 @@ public class Client {
         }
     }
 
-    private static void oldUpdateEvents() { // TODO HIGH IMPORTANCE: Clean this code and remove unnecessary stuff
-        long now = System.currentTimeMillis();
-
-        StringBuilder text = new StringBuilder();
-
-        HashMap<Event, Long> eventDistances = new HashMap<>();
-        HashMap<Event, Long> blackboardEvents = new HashMap<>();
-
-        for (Event event : events) {
-            if (now - event.getEndTimestamp() < 0) continue;
-
-            if (event.getType() == EventType.BLACKBOARD) {
-                blackboardEvents.put(event, event.getStartTimestamp());
-            }
-
-            if ((eventUpdateType != EventType.ALL && eventUpdateType != event.getType()) || !event.isActive())
-                continue; // If a certain update type is selected, continue the for loop
-            eventDistances.put(event, Math.floorDiv(event.getStartTimestamp() - now, 1000 * 60 * 60 * 24) + 1); // TODO this in new update method
-        }
-
-        Event currentBlackboardEvent = null;
-
-        blackboardEvents = blackboardEvents
-                .entrySet()
-                .stream()
-                .sorted(comparingByValue())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e2, LinkedHashMap::new));
-
-        for (Event event : blackboardEvents.keySet()) {
-            if (currentBlackboardEvent == null || event.getStartTimestamp() < now) {
-                currentBlackboardEvent = event;
-            }
-        }
-
-        String title;
-
-        if (currentBlackboardEvent != null) {
-            title = "Events (" + eventUpdateType + ") WT: " + currentBlackboardEvent.getText();
-        } else {
-            title = "Events (" + eventUpdateType + ")";
-        }
-
-        Border border = BorderFactory.createTitledBorder(title);
-        frame.getEventsField().setBorder(border);
-
-        eventDistances = eventDistances // Sort by ascending order
-                .entrySet()
-                .stream()
-                .sorted(comparingByValue())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e2, LinkedHashMap::new));
-
-        boolean anyEvent = false;
-
-        int lineCounter = 0;
-        int eventCounter = 0;
-
-        ArrayList<String> shownEvents = new ArrayList<>();
-        HashMap<Event, Long> finalEvents = new HashMap<>();
-
-        for (Event event : eventDistances.keySet()) {
-            if (event.getEndTimestamp() > now) {
-                eventCounter++;
-                finalEvents.put(event, eventDistances.get(event));
-            }
-
-            if (eventCounter > page * 7) break;
-        }
-
-        print("Final Events size: " + finalEvents.size());
-
-        for (Event event : finalEvents.keySet()) {
-            long daysRemaining = finalEvents.get(event);
-
-            if (event.getEndTimestamp() > now) {
-                if (lineCounter < (page - 1) * 7) continue;
-
-                if (lineCounter > page * 7 + 1) break;
-                anyEvent = true;
-
-                shownEvents.add(event.getOutput());
-
-                if (daysRemaining > 0) {
-                    text.append(formatCountdown(daysRemaining));
-                    text.append(" bis ");
-                    text.append(defaultEventMessages.get(event.getType()).get(0));
-                    text.append(event.getText());
-                    text.append(defaultEventMessages.get(event.getType()).get(1));
-                } else {
-                    text.append("Heute");
-                    text.append(defaultEventMessages.get(event.getType()).get(2));
-                    text.append(event.getText());
-                    text.append(defaultEventMessages.get(event.getType()).get(3));
-                }
-
-                text.append("\n");
-                lineCounter++;
-
-                if (!event.getDescription().equals("")) {
-                    text.append("    (");
-
-                    boolean newLine = false;
-                    for (int i = 0; i < event.getDescription().length(); i++) {
-                        String character = event.getDescription().substring(i, i + 1);
-                        if (character.equals(" ") && newLine) {
-                            newLine = false;
-                            text.append("\n    ");
-                            lineCounter++;
-                        } else {
-                            text.append(character);
-                        }
-
-                        if ((i + 1) % 80 == 0) newLine = true;
-                    }
-
-                    text.append(")\n");
-                }
-            }
-        }
-
-        boolean same = true;
-
-        if (lastEvents.size() > 0) {
-            for (String shownEvent : shownEvents) {
-                if (!lastEvents.contains(shownEvent)) {
-                    print("Found other event, not similar. Updating...");
-                    print(shownEvent);
-                    same = false;
-                    break;
-                }
-            }
-        }
-
-        if (!same || lastEvents.size() == 0 || eventsTypeUpdated) {
-            eventsTypeUpdated = false;
-            frame.getEventsText().setText(text.toString());
-            lastEvents = shownEvents;
-        }
-
-        if (!anyEvent) {
-            frame.getEventsText().setText(text.toString() + "Keine Events.");
-        }
-    }
-
-    private static void updateNoten() { // TODO Sync with server
+    private static void updateNoten() { // ToDo: Calculate points with special filters for PHY, etc.
         HashMap<Note, Long> notenDistances = new HashMap<>();
 
         ArrayList<String> shownNoten = new ArrayList<>();
 
         for (Note note : person.getNoten()) {
-            notenDistances.put(note, 0 - note.getRegisteredTimestamp()); // Descending order
+            notenDistances.put(note, -note.getRegisteredTimestamp()); // Descending order
         }
 
         notenDistances = notenDistances // Sort by ascending order
@@ -699,8 +536,8 @@ public class Client {
             shownNoten.add(note.getOutput());
 
             String subject = note.getSubject();
-            //String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject.contains("-") ? subject.split("-")[0] : subject.split("\\.")[0], subject); // subject_abbreviations2
-            String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject, subject);
+            String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject.contains("-") ? subject.split("-")[0] : subject.split("\\.")[0], subject); // subject_abbreviations2
+            //String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject, subject);
 
             text.append(abbreviatedSubject);
             text.append(" - ");
@@ -712,7 +549,7 @@ public class Client {
 
         boolean same = true;
 
-        if (lastNoten.size() > 0) { // TODO Implement this in updateEvents()
+        if (lastNoten.size() > 0) {
             for (String shownNote : shownNoten) {
                 if (!lastNoten.contains(shownNote)) {
                     print("Found other note, not similar. Updating...");
@@ -754,8 +591,8 @@ public class Client {
 
             String subject = lektion.getSubject();
 
-            //String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject.contains("-") ? subject.split("-")[0] : subject.split("\\.")[0], lektion.getSubject()); // subject_abbreviations2
-            String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject, subject);
+            String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject.contains("-") ? subject.split("-")[0] : subject.split("\\.")[0], subject); // subject_abbreviations2
+            //String abbreviatedSubject = subjectAbbreviations.getOrDefault(subject, subject);
             subjects.add(abbreviatedSubject);
             startTimes.add(lektion.getStartTime());
             rooms.add(lektion.getRoom());
@@ -770,11 +607,15 @@ public class Client {
 
         CellRenderer renderer = new CellRenderer();
         frame.getLektionenTable().setDefaultRenderer(Object.class, renderer);
+
+        resizeColumnWidth(frame.getLektionenTable());
     }
 
     private static void updateProgressBars() {
         ArrayList<Lektion> lessons = person.getLektionen();
         long duration = 1000 * 60 * 45; // 45 minutes per lesson
+
+        long now = System.currentTimeMillis();
 
         boolean currentLessonActive = false;
 
@@ -783,13 +624,17 @@ public class Client {
 
         if (lessons.size() > 1) {
             lektionBeforeBreak = lessons.get(0);
-            lektionAfterBreak = lessons.get(1);
+
+            if (lessons.get(0).getStartTimestamp() > now) {
+                lektionAfterBreak = lessons.get(0);
+            } else {
+                lektionAfterBreak = lessons.get(1);
+            }
         }
 
         boolean dayOver = false;
 
         ArrayList<Long> startTimes = new ArrayList<>();
-        long now = System.currentTimeMillis();
         double difference;
 
         long totalDayHours = 0;
@@ -813,13 +658,11 @@ public class Client {
             }
 
             if (now > endTimestamp && i + 1 != lessons.size() && lessons.get(i + 1).getStartTimestamp() > now) { // if i + 1 is lessons.size(), then there won't be a i + 1 lesson
-                //print("Between two lessons lesson found");
                 lektionBeforeBreak = lektion;
                 lektionAfterBreak = lessons.get(i + 1);
             }
 
             if (startTimestamp < now && endTimestamp > now) {
-                //print("Active lesson found");
                 currentLessonActive = true;
 
                 difference = now - startTimestamp;
@@ -900,9 +743,6 @@ public class Client {
             }
         }
 
-        print("Last Holidays End Timestamp: " + lastHolidaysEndTimestamp);
-        print("Next Holidays Start Timestamp: " + nextHolidaysStartTimestamp);
-
         Calendar currentCalendar = Calendar.getInstance();
         Calendar nextHolidaysCalendar = Calendar.getInstance();
         nextHolidaysCalendar.setTimeInMillis(nextHolidaysStartTimestamp);
@@ -918,46 +758,6 @@ public class Client {
             frame.getUntilHolidaysProgressBar().setValue((int) percent);
             frame.getUntilHolidaysProgressBar().setString(formatCountdown(daysUntilHolidays) + " bis zur Ferien");
         }
-
-        /* OLD TIMESTAMP FINDER
-
-        long lastHolidaysTimestamp = 0;
-        long nextHolidaysTimestamp = 0;
-
-        for (Event event : events) {
-            if (event.getType() != EventType.HOLIDAYS) continue;
-
-            if ((event.getEndTimestamp() > lastHolidaysTimestamp && now > event.getEndTimestamp()) || lastHolidaysTimestamp == 0) { // Find latest holidays end
-                lastHolidaysTimestamp = event.getEndTimestamp();
-            }
-
-            if (nextHolidaysTimestamp == 0) {
-                nextHolidaysTimestamp = event.getStartTimestamp();
-                continue;
-            }
-
-            if (event.getStartTimestamp() > now && event.getStartTimestamp() < nextHolidaysTimestamp) { // Find closest holidays TODO FIX
-                nextHolidaysTimestamp = event.getStartTimestamp();
-            }
-        }
-
-
-        Calendar currentCalendar = Calendar.getInstance();
-        Calendar nextHolidaysCalendar = Calendar.getInstance();
-        nextHolidaysCalendar.setTimeInMillis(nextHolidaysTimestamp);
-
-        double percent = (double) (now - lastHolidaysTimestamp) / (nextHolidaysTimestamp - lastHolidaysTimestamp) * 100;
-
-        long daysUntilHolidays = Duration.between(currentCalendar.toInstant(), nextHolidaysCalendar.toInstant()).toDays() + 1;
-
-        if (percent < 0) { // Ferien sind aktiv
-            frame.getUntilHolidaysProgressBar().setValue(100);
-            frame.getUntilHolidaysProgressBar().setString("Keine aktive Schulzeit");
-        } else {
-            frame.getUntilHolidaysProgressBar().setValue((int) percent);
-            frame.getUntilHolidaysProgressBar().setString(formatCountdown(daysUntilHolidays) + " bis zur Ferien");
-        }
-        */
     }
 
     private static String countdownMMHH(long timeLeft) {
@@ -1132,10 +932,6 @@ public class Client {
                 print("No changes detected. Date switch: " + !oldPerson.getDate().equals(newPerson.getDate()));
             }
         }
-
-        /*if (person.isEventsUpdate()) {
-            updateEvents();
-        }*/
 
         saveFile(convertPersonToJson(newPerson).toString(4), "person.json");
         person = newPerson;
@@ -1333,6 +1129,21 @@ public class Client {
         updateProgressBars();
     }
 
+    private static void resizeColumnWidth(JTable table) {
+        final TableColumnModel columnModel = table.getColumnModel();
+        for (int column = 0; column < table.getColumnCount(); column++) {
+            int width = 15; // Min width
+            for (int row = 0; row < table.getRowCount(); row++) {
+                TableCellRenderer renderer = table.getCellRenderer(row, column);
+                Component comp = table.prepareRenderer(renderer, row, column);
+                width = Math.max(comp.getPreferredSize().width + 1, width);
+            }
+            if (width > 300)
+                width = 300;
+            columnModel.getColumn(column).setPreferredWidth(width);
+        }
+    }
+
     public static void main(String[] args) {
         if (!preinitialize()) exit(1);
 
@@ -1366,8 +1177,6 @@ public class Client {
                     Person newPerson = convertJsonToPerson(downloadData().getObject());
 
                     comparePersonObjects(newPerson);
-
-                    //loadEvents(downloadEvents().getArray()); // Update events
                 } catch (Exception e) {
                     e.printStackTrace();
                     failures++;
@@ -1377,14 +1186,14 @@ public class Client {
             }
         };
 
-        timerSecondly.scheduleAtFixedRate(timerTaskSecondly, 0, 1000);
-        timerMutliSecondly.scheduleAtFixedRate(timerTaskMultiSecondly, 1, 1000 * 3);
+        timerSecondly.schedule(timerTaskSecondly, 0, 1000);
+        timerMutliSecondly.schedule(timerTaskMultiSecondly, 1, 1000 * 3);
 
         frame.getAddEventButton().addActionListener(e -> {
             print("Add Event Button clicked");
 
-            JComboBox eventTypesBox = new JComboBox();
-            DefaultComboBoxModel eventTypesModel = new DefaultComboBoxModel();
+            @SuppressWarnings("rawtypes") JComboBox eventTypesBox = new JComboBox();
+            @SuppressWarnings("rawtypes") DefaultComboBoxModel eventTypesModel = new DefaultComboBoxModel();
 
             for (EventType eventType : EventType.values()) {
                 eventTypesModel.addElement(eventType);
@@ -1411,7 +1220,7 @@ public class Client {
                 addEvent(eventType, eventTextText.getText(), eventDescriptionText.getText(), startDate.getTime());
             }
         });
-
+    
         frame.getRemoveEventButton().addActionListener(e -> {
             print("Remove Event Button clicked");
 
@@ -1483,7 +1292,7 @@ public class Client {
             }
         });
 
-        frame.getPreviousButton().addActionListener(e -> { // TODO Finish this
+        frame.getPreviousButton().addActionListener(e -> {
             print("Previous Button clicked");
 
             page--;
@@ -1499,12 +1308,12 @@ public class Client {
             updateEvents();
         });
 
-        frame.getNextButton().addActionListener(e -> { // TODO Finish this
+        frame.getNextButton().addActionListener(e -> {
             print("Next Button clicked");
 
             page++;
 
-            if (page == maxPage) {
+            if (page == maxPage && frame.getNextButton().isEnabled()) {
                 frame.getNextButton().setEnabled(false);
             }
 
@@ -1526,17 +1335,15 @@ public class Client {
 
             creditsButton.addActionListener(e2 -> {
                 Object[] credits = {
-                        "Ardit Citaku 2019"
+                        "Ardit Citaku 2019/20"
                 };
                 JOptionPane.showConfirmDialog(null, credits, "Credits", JOptionPane.OK_CANCEL_OPTION);
             });
 
-            JOptionPane jOptionPane = new JOptionPane();
-
-            int option = jOptionPane.showConfirmDialog(null, message, "Event hinzufügen", JOptionPane.OK_CANCEL_OPTION);
+            int option = JOptionPane.showConfirmDialog(null, message, "Event hinzufügen", JOptionPane.OK_CANCEL_OPTION);
 
             if (option == JOptionPane.OK_OPTION) {
-
+                // TODO
             }
         });
 

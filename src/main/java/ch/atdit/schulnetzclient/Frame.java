@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 
 @Getter
@@ -54,13 +55,13 @@ public class Frame {
         Panel = new JPanel();
         Panel.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1));
         Panel.setOpaque(true);
-        Panel.setPreferredSize(new Dimension(780, 460));
+        Panel.setPreferredSize(new Dimension(780, 480));
         Panel.setRequestFocusEnabled(true);
         Panel.setVerifyInputWhenFocusTarget(true);
         lessonsField = new JPanel();
         lessonsField.setLayout(new GridLayoutManager(4, 2, new Insets(0, 0, 0, 0), -1, -1));
         Panel.add(lessonsField, new GridConstraints(0, 0, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(296, 177), null, 0, false));
-        lessonsField.setBorder(BorderFactory.createTitledBorder("Lektionen"));
+        lessonsField.setBorder(BorderFactory.createTitledBorder(null, "Lektionen", TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null, null));
         currentLessonLabel = new JLabel();
         currentLessonLabel.setText("Lektion: ");
         lessonsField.add(currentLessonLabel, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_SOUTHWEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
@@ -99,8 +100,8 @@ public class Frame {
         lessonsField.add(untilHolidaysProgressBar, new GridConstraints(3, 1, 1, 1, GridConstraints.ANCHOR_SOUTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(189, 19), null, 0, false));
         eventsField = new JPanel();
         eventsField.setLayout(new GridLayoutManager(4, 6, new Insets(0, 0, 0, 0), -1, -1));
-        Panel.add(eventsField, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        eventsField.setBorder(BorderFactory.createTitledBorder("Events"));
+        Panel.add(eventsField, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+        eventsField.setBorder(BorderFactory.createTitledBorder(null, "Events", TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null, null));
         eventsText = new JTextArea();
         eventsText.setBackground(new Color(-986896));
         eventsText.setEditable(false);
@@ -131,7 +132,7 @@ public class Frame {
         allHausaufgabenButton.setText("Hausaufgaben");
         eventsField.add(allHausaufgabenButton, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         removeEventButton = new JButton();
-        removeEventButton.setText("Event entfernen");
+        removeEventButton.setText("Event bearbeiten");
         eventsField.add(removeEventButton, new GridConstraints(3, 2, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         settingsButton = new JButton();
         settingsButton.setText("Einstellungen");
@@ -149,7 +150,7 @@ public class Frame {
         notenField = new JPanel();
         notenField.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
         Panel.add(notenField, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        notenField.setBorder(BorderFactory.createTitledBorder("Noten"));
+        notenField.setBorder(BorderFactory.createTitledBorder(null, "Noten", TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null, null));
         notenText = new JTextArea();
         notenText.setBackground(new Color(-986896));
         notenText.setEditable(false);
